@@ -76,12 +76,10 @@ class InfoFrame(LabelFrame):
 			value_lbl.grid(row=i, column=1)
 			self.values.append(value_lbl)
 		#Creación de botones para eliminar y plotear
-		delete_ico = PhotoImage(file="/home/prodwarrior/Documentos/WatchTower/images/delete_ico.png")
-		plot_ico = PhotoImage(file="/home/prodwarrior/Documentos/WatchTower/images/chart_ico.png")
 		plot_btn = Button(self, text="Grafica")
 		plot_btn.grid(row=6, column=0)
 		del_btn = Button(self, text="X", command = self.delete_host)
-		plot_btn.grid(row=6, column=1)
+		del_btn.grid(row=6, column=1)
 	#Pide y actualiza constantemente la información contenida en el frame
 	def update_data(self):
 		host_info = agente_manager.get_agent_info(self.id)
@@ -98,7 +96,7 @@ class InfoFrame(LabelFrame):
 			tcp_err = agente_manager.get_agent_tcpErrorsRecibed(self.id)
 			self.values[4].config(text=str(tcp_err))
 			snmp_resp = agente_manager.get_agent_snmpOutGetResponses(self.id)
-			self.values[5].config(text=str(tcp_err))
+			self.values[5].config(text=str(snmp_resp))
 	#Inicia un hilo que permite actualizar la información sin interrumpir a la aplicación
 	def start_update(self):
 		updater = threading.Thread(target=self.update_data)
@@ -151,12 +149,12 @@ class GridPaneWindow(Tk):
 			self.rowCount = self.rowCount + 1			
 			self.add_host_frame(host, community, port)			
 		else:
-			agente_manager.add_agent(community, host, port, self.hostCount)
+			#agente_manager.add_agent(community, host, port, self.hostCount)
 			infoframe = InfoFrame(self.paneRows[self.rowCount], "Info panel", self.hostCount)
 			self.paneRows[self.rowCount].add(infoframe)						
 			self.paneRows[self.rowCount].pack()
 			infoframe.pack(side=LEFT)
-			infoframe.start_update()
+			#infoframe.start_update()
 			self.colCount = self.colCount + 1
 			self.hostCount = self.hostCount + 1
 			self.infoFrames.append(infoframe)
