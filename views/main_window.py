@@ -8,9 +8,74 @@ from matplotlib import pyplot as plt
 from matplotlib import animation
 import tkSimpleDialog
 import tkMessageBox
-
+import matplotlib
+matplotlib.use('TkAgg')
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 
 agente_manager = agent_manager.agent_manager()
+#La clase permite generar gráficos de ciertos valores monitoreados
+class PlotterWindow(Tk):
+	def __init__(self, _id):
+		Tk.__init__(self)
+		self.TCP_labels = ["TCP Inputs", "TCP In errors", "TCP Outputs"]
+		self.TCP_colors = ['yellowgreen', 'gold', 'lightskyblue']
+		self.UDP_labels = ["UDP Inputs", "UDP In errors", "UDP Outputs"]
+		self.UDP_colors = ['yellowgreen', 'gold', 'lightskyblue']
+		self.TCP_values = []
+		self.UDP_values = []
+		self.TCP_Pie = None
+		self.UDP_Pie = None
+		self.canvas = None
+		self._id = _id
+		self.active = True
+		self.initUI()
+
+	def initUI(self):
+		figure = Figure(figsize=(6, 5), dpi=100)
+		self.TCP_Pie = figure.add_subplot(121)
+		self.TCP_Pie.set_aspect('equal')
+		self.UDP_Pie = figure.add_subplot(122)
+		self.UDP_Pie.set_aspect('equal')
+		self.canvas = FigureCanvasTkAgg(figure, self)
+		self.canvas.show()
+		self.canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=0)
+
+	def update(self):
+		while self.active:
+			self.TCP_Pie.clear()
+			self.UDP_Pie.clear()
+
+			segmetsRecv = agente_manager.get_agent_tcpSegmentRecibed(self._id)
+			print segmetsRecv
+			self.TCP_values.append(segmetsRecv)
+			errRecv = agente_manager.get_agent_tcpErrorsRecibed(self._id)
+			print errRecv
+			self.TCP_values.append(errRecv)
+			OutSeg = agente_manager.get_agent_tcpOutSegs(self._id)
+			print OutSeg
+			self.TCP_values.append(OutSeg)
+
+			#self.UDP_values.append(agente_manager.get_agent_udpInDatagrams(self._id))
+			#self.UDP_values.append(agente_manager.get_agent_udpInErrors(self._id))
+			#self.UDP_values.append(agente_manager.get_agent_udpOutDatagrams(self._id))
+
+			self.TCP_Pie.pie(self.TCP_values, labels=self.TCP_labels, colors=self.TCP_colors,
+			autopct='%1.1f%%', shadow=True, startangle=90,
+			radius=0.45, center=(.5, .5), frame=True)
+
+			#self.UDP_Pie.pie(self.UDP_values, labels=self.UDP_labels, colors=self.UDP_colors,
+			#autopct='%1.1f%%', shadow=True, startangle=90,
+			#radius=0.45, center=(.5, .5), frame=True)
+			self.canvas.draw()
+
+	def start_draw(self):
+		self.mainloop()
+		updater = threading.Thread(target=self.update)
+		updater.start()
+
+	def stop(self):
+		self.active = False
 #La clase permite mostrar un dialogo para agregar un host
 class AddHostDialog(tkSimpleDialog.Dialog):
 	def __init__(self, parent):
@@ -43,7 +108,6 @@ class AddHostDialog(tkSimpleDialog.Dialog):
 			self.parent.add_host_frame(host, community, int(port))
 		else:
 			tkMessageBox.showinfo("Parámetros requeridos", "Comunidad y Host name son campos obligatorios")
-			
 #Esta clase genera un LabelFrame con los elementos necesarios para mostrar la información de un host
 class InfoFrame(LabelFrame):
 	def __init__(self, parent, label, id_):
@@ -76,7 +140,7 @@ class InfoFrame(LabelFrame):
 			value_lbl.grid(row=i, column=1)
 			self.values.append(value_lbl)
 		#Creación de botones para eliminar y plotear
-		plot_btn = Button(self, text="Grafica")
+		plot_btn = Button(self, text="Grafica", command = self.plot)
 		plot_btn.grid(row=6, column=0)
 		del_btn = Button(self, text="X", command = self.delete_host)
 		del_btn.grid(row=6, column=1)
@@ -110,6 +174,9 @@ class InfoFrame(LabelFrame):
 		agente_manager.delete_agent(self.id)
 		self.pack_forget()
 		self.destroy()
+	def plot(self):
+		plotter = PlotterWindow(self.id)
+		plotter.start_draw()
 #Clase de una ventana principal que implementa las clases anteriores
 class GridPaneWindow(Tk):
 	def __init__(self):
@@ -149,12 +216,12 @@ class GridPaneWindow(Tk):
 			self.rowCount = self.rowCount + 1			
 			self.add_host_frame(host, community, port)			
 		else:
-			#agente_manager.add_agent(community, host, port, self.hostCount)
+			agente_manager.add_agent(community, host, port, self.hostCount)
 			infoframe = InfoFrame(self.paneRows[self.rowCount], "Info panel", self.hostCount)
 			self.paneRows[self.rowCount].add(infoframe)						
 			self.paneRows[self.rowCount].pack()
 			infoframe.pack(side=LEFT)
-			#infoframe.start_update()
+			infoframe.start_update()
 			self.colCount = self.colCount + 1
 			self.hostCount = self.hostCount + 1
 			self.infoFrames.append(infoframe)

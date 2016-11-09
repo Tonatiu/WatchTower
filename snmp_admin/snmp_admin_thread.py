@@ -12,8 +12,10 @@ class admin_thread(Thread):
 		self.sysUpTime = ""
 		self.udpInDatagrams = 0
 		self.udpInErrors = 0
+		self.udpOutDatagrams = 0
 		self.tcpErrorsRecibed = 0
 		self.tcpSegmentRecibed = 0
+		self.tcpOutSegs = 0
 		self.snmpOutGetResponses = 0
 		self.live = True
 
@@ -28,9 +30,11 @@ class admin_thread(Thread):
 			self.sysUpTime = "%d:%02d:%02d" % (hrs, mins, secs)
 			self.udpInDatagrams = int(data[1])
 			self.udpInErrors = int(data[2])
-			self.tcpErrorsRecibed = int(data[3])
-			self.tcpSegmentRecibed = int(data[4])
-			self.snmpOutGetResponses = int(data[5])
+			self.udpOutDatagrams = int(data[3])
+			self.tcpErrorsRecibed = int(data[4])
+			self.tcpSegmentRecibed = int(data[5])
+			self.tcpOutSegs = int(data[6])
+			self.snmpOutGetResponses = int(data[7])
 			time.sleep(.002)
 
 	def get_system_description(self):
