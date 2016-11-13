@@ -35,7 +35,7 @@ class admin_thread(Thread):
 			self.tcpSegmentRecibed = int(data[5])
 			self.tcpOutSegs = int(data[6])
 			self.snmpOutGetResponses = int(data[7])
-			time.sleep(.002)
+			time.sleep(.02)
 
 	def get_system_description(self):
 		sys_descr = self.agent_admin.snmpget(constants.sysDscr)

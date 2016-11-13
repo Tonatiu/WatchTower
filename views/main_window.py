@@ -4,6 +4,7 @@ from snmp_agent_managment import agent_manager
 from Tkinter import *
 import threading
 import numpy as np
+import time
 from matplotlib import pyplot as plt
 from matplotlib import animation
 import tkSimpleDialog
@@ -13,66 +14,127 @@ matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
+matplotlib.rcParams['font.size'] = 9.0
+
 agente_manager = agent_manager.agent_manager()
 #La clase permite generar gráficos de ciertos valores monitoreados
 class PlotterWindow(Tk):
 	def __init__(self, _id):
 		Tk.__init__(self)
 		self.TCP_labels = ["TCP Inputs", "TCP In errors", "TCP Outputs"]
-		self.TCP_colors = ['yellowgreen', 'gold', 'lightskyblue']
-		self.UDP_labels = ["UDP Inputs", "UDP In errors", "UDP Outputs"]
-		self.UDP_colors = ['yellowgreen', 'gold', 'lightskyblue']
-		self.TCP_values = []
-		self.UDP_values = []
+		self.TCP_colors = ['yellowgreen', 'red', 'lightskyblue']
+		self.TCP_values = [0, 0, 0]
+		self.TCP_inputs = []
 		self.TCP_Pie = None
+		self.TCP_input_time_chart = None
+		self.TCP_input_line = None
+
+		self.UDP_labels = ["UDP Inputs", "UDP In errors", "UDP Outputs"]
+		self.UDP_colors = ['gold', 'red', 'violet']
+		self.UDP_values = [0, 0, 0]
+		self.UDP_inputs = []
 		self.UDP_Pie = None
+		self.UDP_input_time_chart = None
+		self.UDP_input_line = None
+
+		self.init_inputs()
+		self.time = np.linspace(0, 60, 60)		
 		self.canvas = None
 		self._id = _id
 		self.active = True
+		
 		self.initUI()
 
 	def initUI(self):
-		figure = Figure(figsize=(6, 5), dpi=100)
-		self.TCP_Pie = figure.add_subplot(121)
+		figure = Figure(figsize=(8.5, 5), dpi=100)
+		
+		self.TCP_Pie = figure.add_subplot(221)
 		self.TCP_Pie.set_aspect('equal')
-		self.UDP_Pie = figure.add_subplot(122)
+		self.TCP_input_time_chart = figure.add_subplot(223)
+		self.TCP_input_time_chart.set_ylabel('Segmentos por segundo')
+		self.TCP_input_line, = self.TCP_input_time_chart.plot(self.time, self.TCP_inputs)
+		
+		self.UDP_Pie = figure.add_subplot(222)
 		self.UDP_Pie.set_aspect('equal')
+		self.UDP_input_time_chart = figure.add_subplot(224)
+		self.UDP_input_time_chart.set_ylabel('Datagramas por segundo')
+		self.UDP_input_line, = self.UDP_input_time_chart.plot(self.time, self.UDP_inputs)
+		
 		self.canvas = FigureCanvasTkAgg(figure, self)
 		self.canvas.show()
 		self.canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=0)
 
+	def init_inputs(self):
+		for i in range(60):
+		    self.TCP_inputs.append(0)
+		    self.UDP_inputs.append(0)
+
 	def update(self):
+		time_counter = 0
+		tcp_inputs_persec = 0
+		tcp_inputs_i = agente_manager.get_agent_tcpSegmentRecibed(self._id)
+		tcp_inputs_f = 0
+		
+		udp_inputs_persec = 0
+		udp_inputs_i = agente_manager.get_agent_udpInDatagrams(self._id)
+		udp_inputs_f = 0
+
+		tcp_limit = 10
+		udp_limit = 10
+
 		while self.active:
 			self.TCP_Pie.clear()
+			self.TCP_Pie.axis('off')
 			self.UDP_Pie.clear()
+			self.UDP_Pie.axis('off')
+			if tcp_inputs_persec > tcp_limit:
+				tcp_limit = tcp_inputs_persec + 50
+			if udp_inputs_persec > udp_limit:
+				udp_limit = udp_inputs_persec + 50
+			self.TCP_input_time_chart.set_ylim([-.5, tcp_limit])
+			self.UDP_input_time_chart.set_ylim([-.5, udp_limit])
 
-			segmetsRecv = agente_manager.get_agent_tcpSegmentRecibed(self._id)
-			print segmetsRecv
-			self.TCP_values.append(segmetsRecv)
-			errRecv = agente_manager.get_agent_tcpErrorsRecibed(self._id)
-			print errRecv
-			self.TCP_values.append(errRecv)
-			OutSeg = agente_manager.get_agent_tcpOutSegs(self._id)
-			print OutSeg
-			self.TCP_values.append(OutSeg)
 
-			#self.UDP_values.append(agente_manager.get_agent_udpInDatagrams(self._id))
-			#self.UDP_values.append(agente_manager.get_agent_udpInErrors(self._id))
-			#self.UDP_values.append(agente_manager.get_agent_udpOutDatagrams(self._id))
+			self.TCP_values[0] = agente_manager.get_agent_tcpSegmentRecibed(self._id)
+			self.TCP_values[1] = agente_manager.get_agent_tcpErrorsRecibed(self._id)
+			self.TCP_values[2] = agente_manager.get_agent_tcpOutSegs(self._id)
+			tcp_inputs_f = agente_manager.get_agent_tcpSegmentRecibed(self._id)
+
+			self.UDP_values[0] = agente_manager.get_agent_udpInDatagrams(self._id)
+			self.UDP_values[1] = agente_manager.get_agent_udpInErrors(self._id)
+			self.UDP_values[2] = agente_manager.get_agent_udpOutDatagrams(self._id)
+			udp_inputs_f = agente_manager.get_agent_udpInDatagrams(self._id)
 
 			self.TCP_Pie.pie(self.TCP_values, labels=self.TCP_labels, colors=self.TCP_colors,
-			autopct='%1.1f%%', shadow=True, startangle=90,
-			radius=0.45, center=(.5, .5), frame=True)
+			autopct='%.3f%%', shadow=True, startangle=100,
+			radius=0.4, center=(.5, .5), frame=True, pctdistance=.45, labeldistance=.93)
 
-			#self.UDP_Pie.pie(self.UDP_values, labels=self.UDP_labels, colors=self.UDP_colors,
-			#autopct='%1.1f%%', shadow=True, startangle=90,
-			#radius=0.45, center=(.5, .5), frame=True)
+			self.UDP_Pie.pie(self.UDP_values, labels=self.UDP_labels, colors=self.UDP_colors,
+			autopct='%.3f%%', shadow=True, startangle=100,
+			radius=0.4, center=(.5, .5), frame=True, pctdistance=.45, labeldistance=.93)
+
+			if(tcp_inputs_f != tcp_inputs_i):
+				tcp_inputs_persec = (tcp_inputs_f - tcp_inputs_i)
+			if(udp_inputs_f != udp_inputs_i):
+				udp_inputs_persec = (udp_inputs_f - udp_inputs_i)
+
+			self.TCP_inputs.pop(0)
+			self.TCP_inputs.append(tcp_inputs_persec)
+			self.UDP_inputs.pop(0)
+			self.UDP_inputs.append(udp_inputs_persec)
+			
+			self.TCP_input_line.set_ydata(self.TCP_inputs)
+			self.UDP_input_line.set_ydata(self.UDP_inputs)
+			
+			tcp_inputs_i = tcp_inputs_f
+			udp_inputs_i = udp_inputs_f
 			self.canvas.draw()
 
 	def start_draw(self):
-		self.mainloop()
 		updater = threading.Thread(target=self.update)
 		updater.start()
+		self.wm_title("WatchTower SNMP Monitor: Gráficas")
+		self.mainloop()
 
 	def stop(self):
 		self.active = False
@@ -101,13 +163,16 @@ class AddHostDialog(tkSimpleDialog.Dialog):
 	def apply(self):
 		host = str(self.e1.get())
 		community = str(self.e2.get())
-		port = int(self.e3.get())
-		if port == "":
-			port = '161'
-		if host != "" and community != "":
+		if str(self.e3.get()) == "":
+			port = 161
+		else:
+			port = int(self.e3.get())
+		if community == "":
+			community = "public"
+		if host != "":
 			self.parent.add_host_frame(host, community, int(port))
 		else:
-			tkMessageBox.showinfo("Parámetros requeridos", "Comunidad y Host name son campos obligatorios")
+			tkMessageBox.showinfo("Parámetros requeridos", "Host name es un campo obligatorio")
 #Esta clase genera un LabelFrame con los elementos necesarios para mostrar la información de un host
 class InfoFrame(LabelFrame):
 	def __init__(self, parent, label, id_):
@@ -225,3 +290,5 @@ class GridPaneWindow(Tk):
 			self.colCount = self.colCount + 1
 			self.hostCount = self.hostCount + 1
 			self.infoFrames.append(infoframe)
+
+

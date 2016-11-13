@@ -28,14 +28,17 @@ class agent_manager:
 			return self.agent_list[agent_id].udpOutDatagrams
 
 	def get_agent_tcpErrorsRecibed(self, agent_id):
+		#print("Agent: " + str(agent_id))
 		if(self.agent_list.has_key(agent_id)):
 			return self.agent_list[agent_id].tcpErrorsRecibed
 
 	def get_agent_tcpSegmentRecibed(self, agent_id):
+		#print("Agent: " + str(agent_id))
 		if(self.agent_list.has_key(agent_id)):
 			return self.agent_list[agent_id].tcpSegmentRecibed
 
 	def get_agent_tcpOutSegs(self, agent_id):
+		#print("Agent: " + str(agent_id))
 		if(self.agent_list.has_key(agent_id)):
 			return self.agent_list[agent_id].tcpOutSegs
 
