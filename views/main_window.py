@@ -94,14 +94,13 @@ class PlotterWindow(Tk):
 			self.TCP_input_time_chart.set_ylim([-.5, tcp_limit])
 			self.UDP_input_time_chart.set_ylim([-.5, udp_limit])
 
-
-			self.TCP_values[0] = agente_manager.get_agent_tcpSegmentRecibed(self._id)
 			self.TCP_values[1] = agente_manager.get_agent_tcpErrorsRecibed(self._id)
+			self.TCP_values[0] = agente_manager.get_agent_tcpSegmentRecibed(self._id) - self.TCP_values[1]
 			self.TCP_values[2] = agente_manager.get_agent_tcpOutSegs(self._id)
 			tcp_inputs_f = agente_manager.get_agent_tcpSegmentRecibed(self._id)
 
-			self.UDP_values[0] = agente_manager.get_agent_udpInDatagrams(self._id)
 			self.UDP_values[1] = agente_manager.get_agent_udpInErrors(self._id)
+			self.UDP_values[0] = agente_manager.get_agent_udpInDatagrams(self._id) - self.UDP_values[1]
 			self.UDP_values[2] = agente_manager.get_agent_udpOutDatagrams(self._id)
 			udp_inputs_f = agente_manager.get_agent_udpInDatagrams(self._id)
 
