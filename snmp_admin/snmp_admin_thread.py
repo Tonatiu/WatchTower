@@ -1,11 +1,12 @@
 from threading import Thread
 import time
 import snmp_admin
+from rrdutils import rrd_db
 from config import constants
 
 class admin_thread(Thread):
 	
-	def __init__(self, agente):
+	def __init__(self, agente, db_name):
 		Thread.__init__(self)
 		self.agent_admin = snmp_admin.snmp_admin(agente)
 		self.agente = agente
@@ -17,6 +18,8 @@ class admin_thread(Thread):
 		self.tcpSegmentRecibed = 0
 		self.tcpOutSegs = 0
 		self.snmpOutGetResponses = 0
+		self.rrd_database = rrd_db.rrd_db()
+		self.db_name = db_name
 		self.live = True
 
 	def run(self):
@@ -35,7 +38,9 @@ class admin_thread(Thread):
 			self.tcpSegmentRecibed = int(data[5])
 			self.tcpOutSegs = int(data[6])
 			self.snmpOutGetResponses = int(data[7])
-			time.sleep(.02)
+			self.rrd_database.update(self.db_name, 'N:%s:%s:%s:%s'%(int(data[8]),int(data[9]),int(data[10]),int(data[11])))
+			self.rrd_database.plotGraph(self.db_name)
+			time.sleep(constants.sleeptime)
 
 	def get_system_description(self):
 		sys_descr = self.agent_admin.snmpget(constants.sysDscr)

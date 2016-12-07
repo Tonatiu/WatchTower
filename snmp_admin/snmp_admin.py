@@ -26,8 +26,4 @@ class snmp_admin:
 		        for name, val in varBinds:
 		        	values.append(val)
 		return values
-
-
-
-
 		

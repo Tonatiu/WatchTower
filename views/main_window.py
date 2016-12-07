@@ -3,6 +3,7 @@
 from snmp_agent_managment import agent_manager
 from Tkinter import *
 import threading
+from PIL import ImageTk, Image
 import numpy as np
 import time
 from matplotlib import pyplot as plt
@@ -13,10 +14,36 @@ import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from rrdutils import rrd_db
 
 matplotlib.rcParams['font.size'] = 9.0
 
+round_db_manager = rrd_db.rrd_db()
 agente_manager = agent_manager.agent_manager()
+
+class UsageWindow(Toplevel):
+	def __init__(self, db_name):
+		Toplevel.__init__(self)
+		self.pane_lbl = None
+		self.active = True
+		self.db_name = db_name
+
+		self.initUI()
+
+	def initUI(self):
+		img = ImageTk.PhotoImage(Image.open("./rrdutils/rrdImages/" + self.db_name + "_graph.png"))
+		self.pane_lbl = Label(self, image = img)
+		self.pane_lbl.pack(side = "bottom", fill = "both", expand = "yes")
+	
+	def update(self):
+		while self.active:
+			img = ImageTk.PhotoImage(Image.open("../WatchTower/rrdutils/rrdImages/" + self.db_name + "_graph.png"))
+			self.pane_lbl.configure(image=img)
+	def startDraw(self):
+		updater = threading.Thread(target=self.update)
+		updater.start()
+		self.wm_title("WatchTower SNMP Monitor: Rendimiento")
+		self.mainloop()
 #La clase permite generar gráficos de ciertos valores monitoreados
 class PlotterWindow(Tk):
 	def __init__(self, _id):
@@ -148,19 +175,23 @@ class AddHostDialog(tkSimpleDialog.Dialog):
 		Label(master, text="Host name:").grid(row=0)
 		Label(master, text="Community:").grid(row=1)
 		Label(master, text="Port:").grid(row=2)
+		Label(master, text="DB Name:").grid(row=3)
 
 		self.e1 = Entry(master)
 		self.e2 = Entry(master)
 		self.e3 = Entry(master)
+		self.e4 = Entry(master)
 
 		self.e1.grid(row=0, column=1)
 		self.e2.grid(row=1, column=1)
 		self.e3.grid(row=2, column=1)
+		self.e4.grid(row=3, column=1)
 
 		return self.e1 # initial focus
 
 	def apply(self):
 		host = str(self.e1.get())
+		db_name = str(self.e4.get())
 		community = str(self.e2.get())
 		if str(self.e3.get()) == "":
 			port = 161
@@ -168,13 +199,20 @@ class AddHostDialog(tkSimpleDialog.Dialog):
 			port = int(self.e3.get())
 		if community == "":
 			community = "public"
-		if host != "":
-			self.parent.add_host_frame(host, community, int(port))
+		if host != "" and db_name != "":
+			status = round_db_manager.create(db_name)
+			if status == 0:
+				self.parent.add_host_frame(host, community, int(port), db_name)
+			elif status == -1:
+				tkMessageBox.showinfo("Error!!", "No se pudo generar la base de datos")
+			elif status == -2:
+				tkMessageBox.showinfo("Warning!", "Se usará la base de datos con el mismo nombre")
+				self.parent.add_host_frame(host, community, int(port), db_name)
 		else:
-			tkMessageBox.showinfo("Parámetros requeridos", "Host name es un campo obligatorio")
+			tkMessageBox.showinfo("Parámetros requeridos", "Host name y DB Name son campos obligatorios")
 #Esta clase genera un LabelFrame con los elementos necesarios para mostrar la información de un host
 class InfoFrame(LabelFrame):
-	def __init__(self, parent, label, id_):
+	def __init__(self, parent, label, id_, db_name):
 		LabelFrame.__init__(self, parent, text=label)
 		self.width = 350
 		self.height = 200
@@ -182,6 +220,7 @@ class InfoFrame(LabelFrame):
 		self.id = id_
 		self.values = []
 		self.update = True
+		self.db_name = db_name
 		self.initComps()
 	#Permite inicializar los componentes del frame
 	def initComps(self):
@@ -208,6 +247,8 @@ class InfoFrame(LabelFrame):
 		plot_btn.grid(row=6, column=0)
 		del_btn = Button(self, text="X", command = self.delete_host)
 		del_btn.grid(row=6, column=1)
+		rend_btn = Button(self, text="Rendimiento", command = self.rend)
+		rend_btn.grid(row=6, column=2)
 	#Pide y actualiza constantemente la información contenida en el frame
 	def update_data(self):
 		host_info = agente_manager.get_agent_info(self.id)
@@ -241,6 +282,9 @@ class InfoFrame(LabelFrame):
 	def plot(self):
 		plotter = PlotterWindow(self.id)
 		plotter.start_draw()
+	def rend(self):
+		plotter = UsageWindow(self.db_name)
+		plotter.startDraw()
 #Clase de una ventana principal que implementa las clases anteriores
 class GridPaneWindow(Tk):
 	def __init__(self):
@@ -267,21 +311,21 @@ class GridPaneWindow(Tk):
 	def show_add_form(self):
 		dialog = AddHostDialog(self)
 	#Permite agregar un host, el método se invoca desde el diálogo
-	def add_host_frame(self, host, community, port):
+	def add_host_frame(self, host, community, port, db_name):
 		if (len(self.paneRows) == 0):		
 			new_row = PanedWindow(self)
 			self.paneRows.append(new_row)
 			self.rowCount = self.rowCount + 1
-			self.add_host_frame(host, community, port)
+			self.add_host_frame(host, community, port, db_name)
 		elif (self.colCount == 5):
 			new_row = PanedWindow(self)
 			self.paneRows.append(new_row)
 			self.colCount = 0
 			self.rowCount = self.rowCount + 1			
-			self.add_host_frame(host, community, port)			
+			self.add_host_frame(host, community, port, db_name)			
 		else:
-			agente_manager.add_agent(community, host, port, self.hostCount)
-			infoframe = InfoFrame(self.paneRows[self.rowCount], "Info panel", self.hostCount)
+			agente_manager.add_agent(community, host, port, self.hostCount, db_name)
+			infoframe = InfoFrame(self.paneRows[self.rowCount], "Info panel", self.hostCount, db_name)
 			self.paneRows[self.rowCount].add(infoframe)						
 			self.paneRows[self.rowCount].pack()
 			infoframe.pack(side=LEFT)

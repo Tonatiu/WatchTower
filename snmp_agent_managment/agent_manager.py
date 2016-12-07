@@ -5,9 +5,9 @@ class agent_manager:
 	def __init__(self):
 		self.agent_list = {}
 
-	def add_agent(self, community, host_name, port, agent_id):
+	def add_agent(self, community, host_name, port, agent_id, db_name):
 		agente = agent.agent(community, host_name, port)
-		agente_trhead = snmp_admin_thread.admin_thread(agente)
+		agente_trhead = snmp_admin_thread.admin_thread(agente, db_name)
 		self.agent_list[agent_id] = agente_trhead
 		agente_trhead.start()
 
